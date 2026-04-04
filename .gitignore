@@ -91,3 +91,5 @@ logs/
 *.backup
 
 report.md
+/scripts/VISUALIZATION/
+/scripts/MODELING/

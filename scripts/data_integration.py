@@ -24,29 +24,57 @@ def standardize_id(user_id):
         return f"id{numbers.zfill(3)}"
     return user_id
 
+def interpolate_at_time(target_time, matched, col):
+    """Linearly interpolate a sensor column to the exact target timestamp.
+    Falls back to nearest neighbour if only one side is available."""
+    if col not in matched.columns:
+        return None
+
+    before = matched[matched['datetime'] <= target_time]
+    after  = matched[matched['datetime'] >= target_time]
+
+    if before.empty and after.empty:
+        return None
+    if before.empty:
+        return after.nsmallest(1, 'datetime')[col].iloc[0]
+    if after.empty:
+        return before.nlargest(1, 'datetime')[col].iloc[0]
+
+    t0_row = before.nlargest(1, 'datetime').iloc[0]
+    t1_row = after.nsmallest(1, 'datetime').iloc[0]
+
+    # Exact match — no interpolation needed
+    if t0_row['datetime'] == t1_row['datetime']:
+        return t0_row[col]
+
+    dt_total = (t1_row['datetime'] - t0_row['datetime']).total_seconds()
+    weight   = (target_time - t0_row['datetime']).total_seconds() / dt_total
+    return t0_row[col] + weight * (t1_row[col] - t0_row[col])
+
+
 def match_sensor_data(survey_time, sensor_df, participant_id, window_minutes=30):
     start_time = survey_time - timedelta(minutes=window_minutes)
-    end_time = survey_time + timedelta(minutes=window_minutes)
-    
+    end_time   = survey_time + timedelta(minutes=window_minutes)
+
     mask = (
-        (sensor_df['datetime'] >= start_time) & 
+        (sensor_df['datetime'] >= start_time) &
         (sensor_df['datetime'] <= end_time) &
         (sensor_df['participant_id'] == participant_id)
     )
-    
-    matched = sensor_df[mask]
+
+    matched = sensor_df[mask].sort_values('datetime').reset_index(drop=True)
     if len(matched) == 0:
         return None
-    
+
     return {
-        'mean_co2': matched['co2'].mean() if 'co2' in matched.columns else None,
-        'mean_temp': matched['temperature'].mean(),
-        'mean_humidity': matched['humidity'].mean(),
-        'mean_voc': matched['voc'].mean() if 'voc' in matched.columns else None,
-        'mean_pm25': matched['pm25'].mean() if 'pm25' in matched.columns else None,
-        'mean_aqs': matched['aqs'].mean() if 'aqs' in matched.columns else None,
+        'mean_co2':      interpolate_at_time(survey_time, matched, 'co2'),
+        'mean_temp':     interpolate_at_time(survey_time, matched, 'temperature'),
+        'mean_humidity': interpolate_at_time(survey_time, matched, 'humidity'),
+        'mean_voc':      interpolate_at_time(survey_time, matched, 'voc'),
+        'mean_pm25':     interpolate_at_time(survey_time, matched, 'pm25'),
+        'mean_aqs':      interpolate_at_time(survey_time, matched, 'aqs'),
         'location_type': matched['location_type'].iloc[0] if 'location_type' in matched.columns else None,
-        'sensor_count': len(matched)
+        'sensor_count':  len(matched)
     }
 
 def match_test_data(survey_time, test_df, participant_id, window_minutes=10):
