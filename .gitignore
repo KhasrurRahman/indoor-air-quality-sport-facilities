@@ -91,5 +91,6 @@ logs/
 *.backup
 
 report.md
+Research_Protocol.md
 /scripts/VISUALIZATION/
 /scripts/MODELING/
