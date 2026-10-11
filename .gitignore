@@ -94,3 +94,18 @@ report.md
 Research_Protocol.md
 /scripts/VISUALIZATION/
 /scripts/MODELING/
+
+/graphify-out/
+
+# Report and poster: only the final PDFs go to GitHub, everything else stays local
+report/*
+!report/corrected/
+report/corrected/*
+!report/corrected/report_corrected.pdf
+poster/*
+!poster/poster.pdf
+
+# Internal notes and instructions for the agent
+docs/
+CLAUDE.md
+

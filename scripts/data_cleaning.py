@@ -36,6 +36,13 @@ def count_fluency(text):
                 responses.append(cleaned)
     return len(responses)
 
+# column names without the units, because the unit spelling differs between exports
+atmotube_columns = {'VOC': 'voc', 'AQS': 'aqs', 'Temperature': 'temperature', 'Humidity': 'humidity',
+                    'Pressure': 'pressure', 'PM1': 'pm1', 'PM2.5': 'pm25', 'PM10': 'pm10'}
+
+def atmotube_name(col):
+    return atmotube_columns.get(col.split(',')[0].strip(), col)
+
 print("\nSurvey data...", end=" ")
 
 survey_df = pd.read_csv(data_dir / 'Survey Data' / 'survey_responses.csv')
@@ -95,9 +102,11 @@ for file_path in aircontrol_files:
                 location_type = 'home'
         
         df = pd.read_csv(file_path)
+        # id099 and id108 export the date month first
+        date_col, date_fmt = ('D_M_YYYY', '%d/%m/%Y') if 'D_M_YYYY' in df.columns else ('M_D_YYYY', '%m/%d/%Y')
         df['datetime'] = pd.to_datetime(
-            df['D_M_YYYY'].astype(str) + ' ' + df['TIME[HH:mm:ss]'].astype(str),
-            format='%d/%m/%Y %H:%M:%S',
+            df[date_col].astype(str) + ' ' + df['TIME[HH:mm:ss]'].astype(str),
+            format=date_fmt + ' %H:%M:%S',
             errors='coerce'
         )
         
@@ -120,8 +129,8 @@ for file_path in aircontrol_files:
         
         if len(df) > 0:
             aircontrol_dfs.append(df)
-    except:
-        continue
+    except Exception as e:
+        print(f"\nskipped {file_path}: {e!r}")
 
 if aircontrol_dfs:
     aircontrol_combined = pd.concat(aircontrol_dfs, ignore_index=True)
@@ -130,7 +139,7 @@ if aircontrol_dfs:
 
 print("AtmoTube sensors...", end=" ")
 
-atmotube_files = glob.glob(str(data_dir / 'id*/AtmoTube/*.csv'))
+atmotube_files = [f for f in glob.glob(str(data_dir / 'id*/AtmoTube/*')) if not os.path.basename(f).startswith('.')]
 atmotube_dfs = []
 
 for file_path in atmotube_files:
@@ -144,16 +153,7 @@ for file_path in atmotube_files:
         df['participant_id'] = participant_id
         df['sensor_type'] = 'AtmoTube'
         
-        df = df.rename(columns={
-            'VOC, ppm': 'voc',
-            'AQS': 'aqs',
-            'Temperature, ˚C': 'temperature',
-            'Humidity, %': 'humidity',
-            'Pressure, hPa': 'pressure',
-            'PM1, ug/m³': 'pm1',
-            'PM2.5, ug/m³': 'pm25',
-            'PM10, ug/m³': 'pm10'
-        })
+        df = df.rename(columns=atmotube_name)
         
         df = df[
             (df['temperature'] >= 10) & (df['temperature'] <= 40) &
@@ -166,8 +166,8 @@ for file_path in atmotube_files:
         
         if len(df) > 0:
             atmotube_dfs.append(df)
-    except:
-        continue
+    except Exception as e:
+        print(f"\nskipped {file_path}: {e!r}")
 
 if atmotube_dfs:
     atmotube_combined = pd.concat(atmotube_dfs, ignore_index=True)
