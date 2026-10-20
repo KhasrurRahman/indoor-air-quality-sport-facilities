@@ -23,6 +23,7 @@ Analysis of indoor air quality (CO₂, temperature, humidity, particulate matter
 │   ├── data_integration.py       # Match sensor readings to survey timestamps
 │   ├── correlation_analysis.py   # Spearman and Pearson correlations
 │   ├── activity_analysis.py      # Activity proxy vs CO₂
+│   ├── exposure_window_check.py  # Correlations with averages before each survey
 │   └── eda/
 │       └── exploratory_analysis.ipynb
 ├── requirements.txt
@@ -40,6 +41,7 @@ python scripts/data_cleaning.py
 python scripts/data_integration.py
 python scripts/correlation_analysis.py
 python scripts/activity_analysis.py
+python scripts/exposure_window_check.py
 # Then open scripts/eda/exploratory_analysis.ipynb
 ```
 
